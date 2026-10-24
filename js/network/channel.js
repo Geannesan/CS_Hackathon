@@ -1,4 +1,5 @@
-import { createPacket, isValidPacket } from "./packet.js";
+// js/network/channel.js
+import { createPacket, isValidPacket, addHop } from "./packet.js"; // <-- Importa addHop
 
 export const CHANNEL_NAME = "resq_mesh_network";
 
@@ -26,12 +27,15 @@ function getChannel() {
 }
 
 function handleMessage(messageEvent) {
-  const packet = messageEvent.data;
+  const rawPacket = messageEvent.data;
 
-  if (!isValidPacket(packet)) {
-    console.warn("[ResQ-Mesh] Trama invalida descartada.", packet);
+  if (!isValidPacket(rawPacket)) {
+    console.warn("[ResQ-Mesh] Trama invalida descartada.", rawPacket);
     return;
   }
+
+  // REGLA TELEMÁTICA: Incrementar el salto al ser recibido por otro nodo de la malla
+  const packet = addHop(rawPacket);
 
   listeners.forEach((callback) => {
     try {
@@ -42,19 +46,12 @@ function handleMessage(messageEvent) {
   });
 }
 
-/**
- * Transmite una trama a las otras pestanas o ventanas del mismo origen.
- * Si recibe datos crudos, crea y valida la trama antes de enviarla.
- */
 export function broadcastPacket(data) {
   const packet = isValidPacket(data) ? data : createPacket(data);
   getChannel().postMessage(packet);
   return packet;
 }
 
-/**
- * Registra un receptor. Retorna una funcion para cancelar la suscripcion.
- */
 export function onPacketReceived(callback) {
   if (typeof callback !== "function") {
     throw new TypeError("callback debe ser una funcion.");
@@ -66,7 +63,6 @@ export function onPacketReceived(callback) {
   return () => listeners.delete(callback);
 }
 
-/** Cierra el canal y elimina receptores, util al desmontar la aplicacion. */
 export function closeChannel() {
   if (channel) {
     channel.removeEventListener("message", handleMessage);
@@ -80,4 +76,3 @@ export function closeChannel() {
 export function isChannelSupported() {
   return "BroadcastChannel" in globalThis;
 }
-
