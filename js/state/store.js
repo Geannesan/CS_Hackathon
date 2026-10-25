@@ -13,6 +13,7 @@ const crearNodos = () => ({
 
 const state = {
   sensorActivo: false,   // ¿el micrófono está escuchando?
+  errorSensor: null,     // texto del error si el micrófono falló (ej. permiso denegado)
   enAlarma: false,       // ¿este dispositivo está emitiendo una alerta?
   impactos: 0,           // golpes detectados en la ventana actual
   nivelAudio: 0,         // 0..1, para el medidor (VU meter)
@@ -67,11 +68,18 @@ function normalizarPaquete(p) {
 // ---------- Acciones (Integrante 2: audio) ----------
 export function setSensorActivo(activo) {
   state.sensorActivo = activo;
+  if (activo) state.errorSensor = null;
   if (!activo) {
     state.impactos = 0;
     state.nivelAudio = 0;
   }
   emit('sensor:cambio', { activo });
+}
+
+export function setErrorSensor(mensaje) {
+  state.errorSensor = mensaje;
+  state.sensorActivo = false;
+  emit('sensor:error', { mensaje });
 }
 
 export function setNivelAudio(nivel) {
@@ -84,10 +92,11 @@ export function registrarImpacto(cantidad) {
   emit('impacto:registrado', { impactos: cantidad });
 }
 
-export function activarAlarma(causa = 'ACOUSTIC_IMPACTS') {
+// `detalle` es opcional: datos del detector (impacts, durationMs, level, dominantFreq...)
+export function activarAlarma(causa = 'ACOUSTIC_IMPACTS', detalle = {}) {
   state.enAlarma = true;
-  state.alertas.unshift({ causa, timestamp: new Date().toISOString(), activa: true });
-  emit('alarma:activada', { causa });
+  state.alertas.unshift({ causa, detalle, timestamp: new Date().toISOString(), activa: true });
+  emit('alarma:activada', { causa, detalle });
 }
 
 export function desactivarAlarma() {
@@ -236,6 +245,7 @@ export function cargarDatosSemilla() {
 // ---------- Reinicio (útil entre tomas del video) ----------
 export function reiniciar() {
   state.sensorActivo = false;
+  state.errorSensor = null;
   state.enAlarma = false;
   state.impactos = 0;
   state.nivelAudio = 0;
