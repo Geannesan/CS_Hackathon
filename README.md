@@ -1,0 +1,4 @@
+### Configuración del Sensor Acústico (Módulo DSP)
+1. **Requisitos de ejecución:** Debido a las políticas de seguridad del navegador para `navigator.mediaDevices.getUserMedia` y módulos ES6, la aplicación debe abrirse mediante un servidor local (`http://localhost`) o `https://` (ej. Live Server en VS Code o `python -m http.server 8000`). No abrir directamente como archivo `file:///`.
+2. **Permisos de Micrófono:** Al presionar **"Activar Sensor de Escombros"**, acepta el permiso del navegador. El sistema desactiva automáticamente `autoGainControl`, `noiseSuppression` y `echoCancellation` para captar impactos mecánicos crudos sin atenuación.
+3. **Calibración:** Los umbrales de histéresis (`IMPACT_THRESHOLD_HIGH = 0.40`, `IMPACT_THRESHOLD_LOW = 0.15`) y la ganancia (`GAIN_BOOST = 1.5`) se encuentran centralizados en `js/utils/constants.js`.
