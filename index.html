@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0d10">
+  <title>ResQ-Mesh · Red de rescate offline</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-view="beacon">
+
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <!-- ================= CABECERA ================= -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1>ResQ-Mesh</h1>
+        <p class="brand-sub">Rescate y localización offline</p>
+      </div>
+    </div>
+    <div class="link-pill" role="status" aria-live="polite">
+      <span id="link-dot" class="dot" aria-hidden="true"></span>
+      <span id="link-status">Sin enlace</span>
+    </div>
+  </header>
+
+  <!-- Navegación por pestañas (solo visible en pantallas angostas) -->
+  <nav class="tabs" aria-label="Vistas">
+    <button type="button" class="tab" data-tab="beacon" aria-selected="true">
+      <span class="tab-num">1</span> Baliza
+    </button>
+    <button type="button" class="tab" data-tab="network" aria-selected="false">
+      <span class="tab-num">2</span> Red
+    </button>
+    <button type="button" class="tab" data-tab="command" aria-selected="false">
+      <span class="tab-num">3</span> Mando
+      <span id="tab-command-count" class="tab-count" hidden>0</span>
+    </button>
+  </nav>
+
+  <main id="main" class="grid">
+
+    <!-- ============ PANTALLA 1 · BALIZA (SOBREVIVIENTE) ============ -->
+    <section id="panel-beacon" class="panel panel-beacon" aria-labelledby="h-beacon">
+      <header class="panel-head">
+        <span class="panel-step">1</span>
+        <div>
+          <h2 id="h-beacon">Modo baliza de emergencia</h2>
+          <p class="panel-sub">Vista del sobreviviente</p>
+        </div>
+      </header>
+
+      <button id="btn-sensor" type="button" class="btn btn-primary" aria-pressed="false">
+        Activar Sensor de Escombros
+      </button>
+      <p id="sensor-status" class="sensor-status" role="status" aria-live="polite">Sensor apagado.</p>
+
+      <div class="vu-block">
+        <div class="vu-label">
+          <span>Energía acústica</span>
+          <span id="vu-value" class="mono">0%</span>
+        </div>
+        <div class="vu" role="meter" aria-label="Nivel de energía acústica"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="vu-bar" class="vu-fill"></div>
+          <span class="vu-threshold" style="left:40%" title="Umbral de impacto (40%)"></span>
+        </div>
+        <div class="vu-scale mono" aria-hidden="true">
+          <span>0</span><span style="left:40%">40% umbral</span><span>100</span>
+        </div>
+      </div>
+
+      <div class="impact-block">
+        <div id="impact-counter" class="impact-counter" role="status" aria-live="polite">
+          <span class="impact-n mono">0 / 3</span> golpes detectados
+        </div>
+        <div id="impact-dots" class="impact-dots" aria-hidden="true">
+          <span class="impact-dot"></span><span class="impact-dot"></span><span class="impact-dot"></span>
+        </div>
+      </div>
+
+      <button id="btn-sos" type="button" class="btn btn-sos" aria-pressed="false">
+        SOS MANUAL
+      </button>
+    </section>
+
+    <!-- ============ PANTALLA 2 · RED MALLA P2P (TELEMÁTICA) ============ -->
+    <section id="panel-network" class="panel panel-network" aria-labelledby="h-network">
+      <header class="panel-head">
+        <span class="panel-step">2</span>
+        <div>
+          <h2 id="h-network">Monitor de red malla P2P</h2>
+          <p class="panel-sub">Vista telemática</p>
+        </div>
+      </header>
+
+      <div id="adhoc-indicator" class="adhoc" role="status" aria-live="polite">
+        <span class="adhoc-pulse" aria-hidden="true"></span>
+        <span id="adhoc-label">Enlace local Ad-Hoc inactivo</span>
+      </div>
+
+      <div class="nodes">
+        <article id="node-victim" class="node" aria-label="Nodo origen">
+          <h3>Nodo origen <small>Víctima</small></h3>
+          <dl>
+            <div><dt>Batería</dt><dd data-field="battery">—</dd></div>
+            <div><dt>Criticidad</dt><dd data-field="criticality">—</dd></div>
+          </dl>
+        </article>
+
+        <span class="node-link" aria-hidden="true"></span>
+
+        <article id="node-repeater" class="node" aria-label="Nodo repetidor">
+          <h3>Nodo repetidor <small>Malla</small></h3>
+          <dl>
+            <div><dt>Saltos (hops)</dt><dd data-field="hops">—</dd></div>
+          </dl>
+        </article>
+
+        <span class="node-link" aria-hidden="true"></span>
+
+        <article id="node-base" class="node" aria-label="Estación base">
+          <h3>Estación base <small>Rescatistas</small></h3>
+          <dl>
+            <div><dt>Recepción</dt><dd data-field="rx">Esperando…</dd></div>
+          </dl>
+        </article>
+      </div>
+
+      <div class="terminal-head">
+        <h3>Paquetes en vivo</h3>
+        <button id="btn-clear-terminal" type="button" class="btn btn-ghost btn-sm">Limpiar</button>
+      </div>
+      <div id="terminal" class="terminal mono" role="log" aria-label="Paquetes en vivo" tabindex="0">
+        <div class="t-line t-sys">Esperando tramas…</div>
+      </div>
+    </section>
+
+    <!-- ============ PANTALLA 3 · CENTRO DE MANDO (RESCATISTAS) ============ -->
+    <section id="panel-command" class="panel panel-command" aria-labelledby="h-command">
+      <header class="panel-head">
+        <span class="panel-step">3</span>
+        <div>
+          <h2 id="h-command">Centro de mando táctico</h2>
+          <p class="panel-sub">Vista de los rescatistas · prioridad de rescate (triage)</p>
+        </div>
+        <div class="panel-counter" title="Víctimas pendientes">
+          <span id="pending-count" class="mono">0</span>
+          <span>pendientes</span>
+        </div>
+      </header>
+
+      <div class="table-wrap">
+        <table class="triage" aria-describedby="h-command">
+          <thead>
+            <tr>
+              <th scope="col">Sector / dispositivo</th>
+              <th scope="col">Señal</th>
+              <th scope="col">Riesgo</th>
+              <th scope="col">Último golpe</th>
+              <th scope="col">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="triage-body"></tbody>
+        </table>
+      </div>
+      <p id="triage-empty" class="triage-empty">Sin alertas recibidas. El sistema está escuchando la malla.</p>
+    </section>
+
+  </main>
+
+  <noscript><p class="noscript">ResQ-Mesh necesita JavaScript activado.</p></noscript>
+
+  <!-- Punto de entrada (lo escribe el responsable de la lógica). Requiere servidor local. -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
