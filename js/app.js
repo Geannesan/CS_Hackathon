@@ -4,7 +4,7 @@
 // Los algoritmos viven en cada módulo; aquí solo se cablea el flujo.
 
 import * as store from './state/store.js';
-import { createPacket } from './network/packet.js';
+import { createPacket, PACKET_TYPES, CRITICALITY } from './network/packet.js';
 import {
   playIncomingPacketBeep,
   playRescueBeaconSiren,
@@ -17,16 +17,25 @@ import {
   isChannelSupported,
 } from './network/channel.js';
 
-// TODO (Int. 1): descomentar y ajustar a los nombres reales
-// import { iniciarBeaconView } from './views/beaconView.js';
-// import { iniciarDashboardView } from './views/dashboardView.js';
+import { conectarDashboard } from './views/dashboardBinding.js';
 
 // ---------- Configuración de la demo ----------
 // Se abre la misma página en dos pestañas:
 //   index.html?rol=victima   -> baliza del sobreviviente
 //   index.html?rol=mando     -> centro de mando del rescatista
-const ROL = new URLSearchParams(location.search).get('rol') === 'mando' ? 'mando' : 'victima';
-const NODE_ID = ROL === 'mando' ? 'BASE-01' : 'VICTIMA-01';
+// Opcionales: &sector=A (sector de la víctima) · &seed=0 (mando sin víctimas de ejemplo)
+const PARAMS = new URLSearchParams(location.search);
+const ROL = PARAMS.get('rol') === 'mando' ? 'mando' : 'victima';
+const NODE_ID = ROL === 'mando' ? 'BASE-01' : (PARAMS.get('id') || 'VICTIMA-01');
+const SECTOR = PARAMS.get('sector') || 'A';
+const USAR_SEMILLA = PARAMS.get('seed') !== '0';
+
+// Batería real del dispositivo (si el navegador la expone); alimenta el payload del paquete
+let bateria = null;
+navigator.getBattery?.().then((b) => {
+  bateria = Math.round(b.level * 100);
+  b.addEventListener('levelchange', () => (bateria = Math.round(b.level * 100)));
+}).catch(() => {});
 
 // Cuánto dura la alarma local antes de rearmarse (sirena + estado "en alarma")
 const DURACION_ALARMA_MS = 8000;
@@ -76,9 +85,10 @@ function conectarFlujoDeAlerta() {
   store.subscribe('alarma:activada', ({ causa, detalle = {} }) => {
     const { impacts, durationMs, level, peak, dominantFreq } = detalle;
     const payload = Object.fromEntries(
-      Object.entries({ impacts, durationMs, level, peak, dominantFreq }).filter(
-        ([, v]) => v !== undefined
-      )
+      Object.entries({
+        cause: causa, sector: SECTOR, battery: bateria,
+        impacts, durationMs, level, peak, dominantFreq,
+      }).filter(([, v]) => v !== undefined && v !== null)
     );
 
     let paquete = createPacket({
@@ -120,6 +130,16 @@ function conectarRecepcion() {
   // onPacketReceived abre el canal la primera vez que se llama
   onPacketReceived((paquete) => {
     store.registrarPaquete(paquete, 'RECIBIDO');
+
+    // Respuesta del mando dirigida a ESTE dispositivo: suena la sirena para que lo localicen
+    if (
+      paquete.header.type === PACKET_TYPES.ACK &&
+      paquete.event === 'RESPONSE_SIREN' &&
+      paquete.payload?.target === NODE_ID
+    ) {
+      sonar(() => playRescueBeaconSiren(RESPUESTA_SIRENA_MS));
+      return;
+    }
     sonar(() => playIncomingPacketBeep());
     // Para la animación de la vista de red: el relé "transmite" un instante
     store.setEstadoNodo('rele', { transmitiendo: true });
@@ -127,20 +147,42 @@ function conectarRecepcion() {
   });
 }
 
+// Mando -> víctima: trama ACK dirigida a un nodo concreto (payload.target)
+const RESPUESTA_SIRENA_MS = 6000;
+function enviarAck(event, target) {
+  try {
+    const ack = broadcastPacket(
+      createPacket({
+        nodeId: NODE_ID,
+        nodeRole: 'BASE',
+        type: PACKET_TYPES.ACK,
+        event,
+        criticality: CRITICALITY.MEDIUM,
+        payload: { target },
+      })
+    );
+    store.registrarPaquete(ack, 'ENVIADO');
+  } catch (e) {
+    console.warn('[app] No se pudo enviar el ACK:', e);
+  }
+}
+
 // Acciones que las vistas pueden usar sin importar app.js (evita imports circulares)
 const acciones = {
   alternarSensor: () => (store.getState().sensorActivo ? detenerSensor() : iniciarSensor()),
   sosManual: () => store.activarAlarma('MANUAL_SOS'),
   cancelarAlarma: () => store.desactivarAlarma(),
-  marcarAtendida: (nodeId) => store.marcarAtendida(nodeId),
+  marcarAtendida: (nodeId) => {
+    store.marcarAtendida(nodeId);
+    enviarAck('SECTOR_ATENDIDO', nodeId);
+  },
+  activarSirenaRespuesta: (nodeId) => enviarAck('RESPONSE_SIREN', nodeId),
 };
 
 // ---------- Arranque ----------
 function iniciar() {
   // 1. Vistas primero: deben suscribirse al store ANTES de cargar la semilla
-  // TODO (Int. 1): pasarles `acciones` para que sus botones funcionen
-  // if (ROL === 'victima') iniciarBeaconView(acciones);
-  // if (ROL === 'mando') iniciarDashboardView(acciones);
+  conectarDashboard(acciones, { rol: ROL, nodeId: NODE_ID });
 
   // 2. Red
   store.setRedAdHoc(isChannelSupported());
@@ -152,7 +194,7 @@ function iniciar() {
   conectarFlujoDeAlerta();
 
   // 4. Datos de demo: solo en el centro de mando
-  if (ROL === 'mando') store.cargarDatosSemilla();
+  if (ROL === 'mando' && USAR_SEMILLA) store.cargarDatosSemilla();
 
   // 5. Útil para depurar desde la consola del navegador
   window.resq = { store, ROL, NODE_ID, acciones, iniciarSensor, detenerSensor };
