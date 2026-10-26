@@ -6,7 +6,7 @@
 
 **Offline rescue and location network.** After an earthquake, with no cell towers and no internet, a phone or laptop becomes an acoustic radar and an emergency beacon: the trapped person knocks three times, the app detects the impacts through the microphone, sends an alert over a P2P mesh, and the command center sees it in a prioritized triage list.
 
-> Team: **[TEAM NAME]** · Members: **[NAMES]**
+> Team: **Tortunet** · Members: **Geanella Santana, Angel Cedeño, Jose Checa, Valeria Gavela, Ariel Mero**
 
 ---
 
